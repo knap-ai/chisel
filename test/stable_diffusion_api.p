@@ -1,0 +1,3 @@
+if __name__ == "__main__":
+    response_json = {'status': 'success', 'generationTime': 11.83010983467102, 'id': 16188114, 'output': ['https://pub-8b49af329fae499aa563997f5d4068a4.r2.dev/generations/3523d42b-f175-4388-86df-009e6b5cb0d9-0.png'], 'meta': {'H': 512, 'W': 512, 'enable_attention_slicing': 'true', 'file_prefix': '3523d42b-f175-4388-86df-009e6b5cb0d9', 'guidance_scale': 7.5, 'model': 'runwayml/stable-diffusion-v1-5', 'n_samples': 1, 'negative_prompt': '', 'outdir': 'out', 'prompt': 'a cute cat holding his sombrero', 'revision': 'fp16', 'safetychecker': 'yes', 'seed': 3325295361, 'steps': 20, 'vae': 'stabilityai/sd-vae-ft-mse'}}
+

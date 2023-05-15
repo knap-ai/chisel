@@ -1,4 +1,8 @@
+# Python
 __pycache__
+*.pyc
+
+# Images and Video
 *.jpg
 *.jpeg
 *.png
@@ -6,3 +10,7 @@ __pycache__
 *.bmp
 *.mp4
 *.mov
+
+# Vim-specific
+.swp
+.swo

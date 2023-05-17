@@ -173,7 +173,7 @@ class StableDiffusionAPIImgToImg(StableDiffusionAPI):
         return self._process_response(response_json)
 
 
-class StableDiffusionAPIEdit(StableDiffusionAPI):
+class StableDiffusionAPIImgEdit(StableDiffusionAPI):
     inpainting_params: Dict[str, str] = {
         "negative_prompt": None,
         "init_image": "",

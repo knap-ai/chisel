@@ -12,5 +12,5 @@ __pycache__
 *.mov
 
 # Vim-specific
-.swp
-.swo
+*.swp
+*.swo

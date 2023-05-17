@@ -16,6 +16,15 @@ class BaseAPIProvider(metaclass=ABCMeta):
     def run(self, inp: Any, params: Optional[Dict[str, str]] = None) -> Any:
         return None
 
+    def get_params(self) -> Dict[str, Any]:
+        return self.params
+
+    def set_params(self, params: Dict[str, Any]) -> Any:
+        # TODO: would be nice to be able to validate params as they come in.
+        for k, v in params.items():
+            if k in self.params.keys():
+                self.params[k] = v
+
     def _download_img_from_url(
         self,
         url: str,

@@ -13,7 +13,7 @@ class ImgEdit(BaseChisel):
         if provider == Provider.OPENAI:
             return OpenAIImgEdit()
         if provider == Provider.DREAMBOOTH:
-            return DreamboothImgEdit()
+            return StabilityAIImgEdit()
         if provider == Provider.STABLEDIFFUSIONAPI:
             return StableDiffusionAPIImgEdit()
 

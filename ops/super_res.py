@@ -13,7 +13,7 @@ class ImgToImg(BaseChisel):
         if provider == Provider.OPENAI:
             return OpenAIImgToImg()
         if provider == Provider.DREAMBOOTH:
-            return DreamboothImgToImg()
+            return StabilityAIImgToImg()
         if provider == Provider.STABLEDIFFUSIONAPI:
             return StableDiffusionAPIImgToImg()
 

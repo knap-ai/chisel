@@ -26,15 +26,6 @@ class StableDiffusionAPI(BaseAPIProvider):
         self._key = EnvHandler.get(self.api_key_name)
         self.params = {}
 
-    def get_params(self) -> Dict[str, str]:
-        return self.params
-
-    def set_params(self, params: Dict[str, str]) -> Any:
-        # TODO: would be nice to be able to validate params as they come in.
-        for k, v in params.items():
-            if k in self.params.keys():
-                self.params[k] = v
-
     def get_api_endpoint(self) -> str:
         url = self.base_url
         if self.model_type == ModelType.TXT2IMG:

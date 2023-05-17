@@ -5,5 +5,5 @@ import chisel.api as api
 
 class Provider(Enum):
     OPENAI = "openai"
-    DREAMBOOTH = "dreambooth"
-    STABLEDIFFUSIONAPI = "stable_diffusion_api"
+    STABILITY_AI= "stability_ai"
+    STABLE_DIFFUSION_API = "stable_diffusion_api"

@@ -13,7 +13,7 @@ class TxtToImg(BaseChisel):
         if provider == Provider.OPENAI:
             return OpenAITxtToImg()
         if provider == Provider.DREAMBOOTH:
-            return DreamboothTxtToImg()
+            return StabilityAITxtToImg()
         if provider == Provider.STABLEDIFFUSIONAPI:
             return StableDiffusionAPITxtToImg()
 

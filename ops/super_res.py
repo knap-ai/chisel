@@ -5,17 +5,17 @@ from chisel.ops.base_chisel import BaseChisel
 from chisel.ops.provider import Provider
 
 
-class ImgToImg(BaseChisel):
+class SuperResolution(BaseChisel):
     def __init__(self, provider: Provider) -> None:
         super().__init__(provider)
 
     def _get_api(self, provider: Provider) -> BaseAPIProvider:
         if provider == Provider.OPENAI:
-            return OpenAIImgToImg()
+            return OpenAISuperRes()
         if provider == Provider.DREAMBOOTH:
-            return StabilityAIImgToImg()
+            return StabilityAISuperRes()
         if provider == Provider.STABLEDIFFUSIONAPI:
-            return StableDiffusionAPIImgToImg()
+            return StableDiffusionAPISuperRes()
 
     def __call__(self, img: Image) -> Image:
         return self.api(img)

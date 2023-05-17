@@ -1,5 +1,4 @@
 import gradio as gr
-from chisel.api.stable_diffusion_api import StableDiffusionAPI
 import chisel.ops
 
 
@@ -26,8 +25,8 @@ if __name__ == "__main__":
     with gr.Blocks() as demo:
         with gr.Row():
             with gr.Column():
-                radio_btn = gr.Radio(
-                    choices=['OpenAI', 'Dreambooth', 'StableDiffusionAPI'],
+                provider = gr.Radio(
+                    choices=['OpenAI', 'StabilityAI', 'StableDiffusionAPI'],
                     value='OpenAI'
                 )
             with gr.Column():
@@ -36,7 +35,7 @@ if __name__ == "__main__":
             with gr.Column():
                 img_output = gr.Image()
 
-        btn.click(fn=run_txt2img, inputs=txt_input, outputs=img_output)
+        btn.click(fn=run_txt2img, inputs=[txt_input, provider], outputs=img_output)
 
         with gr.Row():
             with gr.Column():

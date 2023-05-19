@@ -1,6 +1,11 @@
+import random
+import string
 from os import listdir, unlink
 from os.path import expanduser, isfile, join
 from pathlib import Path
+from typing import Any
+
+import PIL
 
 
 class LocalFS(object):
@@ -23,13 +28,20 @@ class LocalFS(object):
             f.write(obj)
         return full_path
 
+    def write_img_to_tmp(self, img: PIL.Image, filename: str) -> Path:
+        full_path = self.tmp_storage / Path(filename)
+        img.save(str(full_path))
+        return full_path
+
     def stream_to_tmp(
         self,
+        requests_result=None,
         filename: Any = None,
-        requests_result = None,
+        ext: str = None,
     ) -> Path:
         if filename is None:
             filename = self._get_random_tmp_filename(ext)
+        print(f"{filename}")
 
         full_path = self.tmp_storage / filename
         with open(str(full_path), "wb") as f:

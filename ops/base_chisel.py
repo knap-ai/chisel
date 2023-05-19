@@ -12,7 +12,7 @@ class BaseChisel(metaclass=ABCMeta):
 
     @abstractmethod
     def _get_api(self, provider: Provider) -> BaseAPIProvider:
-        return None
+        pass
 
     def get_params(self) -> Dict[str, Any]:
         return self.api.get_params()

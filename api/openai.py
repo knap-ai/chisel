@@ -7,9 +7,8 @@ import requests
 from PIL import Image
 
 from chisel.api.base_api_provider import (
-    BaseAPIProvider, APIResult
+    APIResult, BaseAPIProvider
 )
-from chisel.chisel import Chisel
 from chisel.model_type import ModelType
 from chisel.util.files import get_ext, is_img
 from chisel.util.env_handler import EnvHandler
@@ -48,7 +47,7 @@ class OpenAIImgToImg(OpenAI):
         image_url = response['data'][0]['url']
 
 
-class OpenAIEdit(OpenAI):
+class OpenAIImgEdit(OpenAI):
     def __init__(self) -> None:
         pass
 

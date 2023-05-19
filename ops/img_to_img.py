@@ -1,4 +1,4 @@
-import chisel.api
+from chisel.api import OpenAIImgToImg, StabilityAIImgToImg, StableDiffusionAPIImgToImg
 from chisel.api.base_api_provider import BaseAPIProvider
 from chisel.data_types import Image
 from chisel.ops.base_chisel import BaseChisel
@@ -12,10 +12,10 @@ class ImgToImg(BaseChisel):
     def _get_api(self, provider: Provider) -> BaseAPIProvider:
         if provider == Provider.OPENAI:
             return OpenAIImgToImg()
-        if provider == Provider.DREAMBOOTH:
+        if provider == Provider.STABILITY_AI:
             return StabilityAIImgToImg()
-        if provider == Provider.STABLEDIFFUSIONAPI:
+        if provider == Provider.STABLE_DIFFUSION_API:
             return StableDiffusionAPIImgToImg()
 
     def __call__(self, img: Image) -> Image:
-        return self.api(img)
+        return self.api.run(img)

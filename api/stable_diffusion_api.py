@@ -3,13 +3,12 @@ import json
 from typing import Any, Dict, Optional
 
 import requests
-from PIL import Image
 
 from chisel.api.base_api_provider import (
-    ApiResult, BaseAPIProvider
+    APIResult, BaseAPIProvider
 )
 from chisel.model_type import ModelType
-from chisel.util.files import get_ext, is_img
+from chisel.util.files import is_img
 from chisel.util.env_handler import EnvHandler
 
 
@@ -39,47 +38,49 @@ class StableDiffusionAPI(BaseAPIProvider):
         return url
 
     def _process_response(self, response: Dict[str, Any]) -> APIResult:
-        response_output_list = response.get("output", [])
+        response_output = response.get("output", [])
         api_result = APIResult()
-        if isinstance(response_output_list, list):
-            for output_url in response_output_list:
+
+        if isinstance(response_output, list):
+            for output_url in response_output:
                 if is_img(output_url):
                     local_filename = self._download_img_from_url(
-                        output_url, ext=get_ext(output_url)
+                        url=output_url
                     )
-                    api_result.add(
-                        local_filename,
-                        output_url,
-                    )
+                    api_result.add(local_filename, output_url)
+        elif isinstance(response_output, str):
+            local_filename = self._download_img_from_url(url=output_url)
+            api_result.add(local_filename, output_url)
         else:
-            raise ValueError(f"Unexpected value of `response[\"output\"]`: {response_output_list}")
+            raise ValueError(f"Unexpected value of `response[\"output\"]`: {response_output}")
 
         return api_result
 
 
 class StableDiffusionAPITxtToImg(StableDiffusionAPI):
-    params: Dict[str, str] = {
-        "key": "",
-        "prompt": "",
-        "negative_prompt": None,
-        "width": "512",
-        "height": "512",
-        "samples": "1",
-        "num_inference_steps": "20",
-        "seed": None,
-        "guidance_scale": 7.5,
-        "safety_checker": "yes",
-        "multi_lingual": "no",
-        "panorama": "no",
-        "self_attention": "no",
-        "upscale": "no",
-        "embeddings_model": "embeddings_model_id",
-        "webhook": None,
-        "track_id": None
-    }
 
     def __init__(self):
         self.model_type = ModelType.TXT2IMG
+        super().__init__()
+        self.params: Dict[str, str] = {
+            "key": "",
+            "prompt": "",
+            "negative_prompt": None,
+            "width": "512",
+            "height": "512",
+            "samples": "1",
+            "num_inference_steps": "20",
+            "seed": None,
+            "guidance_scale": 7.5,
+            "safety_checker": "yes",
+            "multi_lingual": "no",
+            "panorama": "no",
+            "self_attention": "no",
+            "upscale": "no",
+            "embeddings_model": "embeddings_model_id",
+            "webhook": None,
+            "track_id": None
+        }
 
     def run(self, inp: Any, params: Optional[Dict[str, str]] = None) -> Any:
         """
@@ -92,14 +93,8 @@ class StableDiffusionAPITxtToImg(StableDiffusionAPI):
 
         if isinstance(inp, str):
             self.params["prompt"] = inp
-        elif isinstance(inp, list):
-            self.params["prompt"] = inp[0]
-            self.params["init_image"] = inp[1]
-
-        if isinstance(inp, list):
-            for idx, i in enumerate(inp):
-                type_i = type(i)
-                print(f"elem {idx}: {type_i}")
+        else:
+            raise ValueError("inp must be a str.")
 
         headers = {
           'Content-Type': 'application/json'
@@ -112,27 +107,26 @@ class StableDiffusionAPITxtToImg(StableDiffusionAPI):
 
 
 class StableDiffusionAPIImgToImg(StableDiffusionAPI):
-    params: Dict[str, str] = {
-        "key": "",
-        "prompt": "",
-        "negative_prompt": None,
-        "init_image": "",
-        "width": "512",
-        "height": "512",
-        "samples": "1",
-        "num_inference_steps": "30",
-        "safety_checker": "no",
-        "enhance_prompt": "yes",
-        "guidance_scale": 7.5,
-        "strength": 0.7,
-        "seed": None,
-        "webhook": None,
-        "track_id": None
-    }
-
     def __init__(self):
         self.model_type = ModelType.IMG2IMG
         super().__init__()
+        self.params: Dict[str, str] = {
+            "key": "",
+            "prompt": "",
+            "negative_prompt": None,
+            "init_image": "",
+            "width": "512",
+            "height": "512",
+            "samples": "1",
+            "num_inference_steps": "30",
+            "safety_checker": "no",
+            "enhance_prompt": "yes",
+            "guidance_scale": 7.5,
+            "strength": 0.7,
+            "seed": None,
+            "webhook": None,
+            "track_id": None
+        }
 
     def run(self, inp: Any, params: Optional[Dict[str, str]] = None) -> Any:
         """
@@ -148,11 +142,6 @@ class StableDiffusionAPIImgToImg(StableDiffusionAPI):
         elif isinstance(inp, list):
             self.params["prompt"] = inp[0]
             self.params["init_image"] = inp[1]
-
-        if isinstance(inp, list):
-            for idx, i in enumerate(inp):
-                type_i = type(i)
-                print(f"elem {idx}: {type_i}")
 
         headers = {
           'Content-Type': 'application/json'
@@ -165,26 +154,25 @@ class StableDiffusionAPIImgToImg(StableDiffusionAPI):
 
 
 class StableDiffusionAPIImgEdit(StableDiffusionAPI):
-    inpainting_params: Dict[str, str] = {
-        "negative_prompt": None,
-        "init_image": "",
-        "mask_image": "",
-        "width": "512",
-        "height": "512",
-        "samples": "1",
-        "num_inference_steps": "30",
-        "safety_checker": "no",
-        "enhance_prompt": "yes",
-        "guidance_scale": 7.5,
-        "strength": 0.7,
-        "seed": None,
-        "webhook": None,
-        "track_id": None
-    }
-
     def __init__(self):
         self.model_type = ModelType.IMG_EDIT
         super().__init__()
+        self.params: Dict[str, str] = {
+            "negative_prompt": None,
+            "init_image": "",
+            "mask_image": "",
+            "width": "512",
+            "height": "512",
+            "samples": "1",
+            "num_inference_steps": "30",
+            "safety_checker": "no",
+            "enhance_prompt": "yes",
+            "guidance_scale": 7.5,
+            "strength": 0.7,
+            "seed": None,
+            "webhook": None,
+            "track_id": None
+        }
 
     def run(self, inp: Any, params: Optional[Dict[str, str]] = None) -> Any:
         """
@@ -195,16 +183,12 @@ class StableDiffusionAPIImgEdit(StableDiffusionAPI):
 
         self.params["key"] = f"{self._key}"
 
-        if isinstance(inp, str):
-            self.params["prompt"] = inp
-        elif isinstance(inp, list):
+        if isinstance(inp, list) and len(inp) == 3:
             self.params["prompt"] = inp[0]
             self.params["init_image"] = inp[1]
-
-        if isinstance(inp, list):
-            for idx, i in enumerate(inp):
-                type_i = type(i)
-                print(f"elem {idx}: {type_i}")
+            self.params["mask_image"] = inp[2]
+        else:
+            raise ValueError("inp must be a list of len 3.")
 
         headers = {
           'Content-Type': 'application/json'
@@ -217,17 +201,16 @@ class StableDiffusionAPIImgEdit(StableDiffusionAPI):
 
 
 class StableDiffusionAPISuperRes(StableDiffusionAPI):
-    params: Dict[str, str] = {
-        "key": "",
-        "url": "",
-        "scale": 3,
-        "webhook": None,
-        "face_enhance": False
-    }
-
     def __init__(self):
         self.model_type = ModelType.SUPER_RES
         super().__init__()
+        self.params: Dict[str, str] = {
+            "key": "",
+            "url": "",
+            "scale": 3,
+            "webhook": None,
+            "face_enhance": False
+        }
 
     def run(self, inp: Any, params: Optional[Dict[str, str]] = None) -> Any:
         """
@@ -243,11 +226,6 @@ class StableDiffusionAPISuperRes(StableDiffusionAPI):
         elif isinstance(inp, list):
             self.params["prompt"] = inp[0]
             self.params["init_image"] = inp[1]
-
-        if isinstance(inp, list):
-            for idx, i in enumerate(inp):
-                type_i = type(i)
-                print(f"elem {idx}: {type_i}")
 
         headers = {
           'Content-Type': 'application/json'

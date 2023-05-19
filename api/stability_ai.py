@@ -1,20 +1,16 @@
+import io
 from os import environ
-from os.path import join
-import json
 from typing import Any, Dict, List, Optional
 
-import requests
-from PIL import Image
-from stability_sdk import stability_client
+import PIL
 import stability_sdk.interfaces.gooseai.generation.generation_pb2 as generation
+import warnings
+from stability_sdk import client as stability_client
 
 from chisel.api.base_api_provider import (
     BaseAPIProvider, APIResult
 )
-from chisel.chisel import Chisel
-from chisel.model_type import ModelType
-from chisel.util.files import get_ext, is_img
-from chisel.util.env_handler import EnvHandler
+from chisel.data_types import Image
 
 
 class StabilityAI(BaseAPIProvider):
@@ -34,23 +30,27 @@ class StabilityAI(BaseAPIProvider):
         "stable-inpainting-512-v2-0",
     ]
     samplers: List[str] = [
-        "ddim",
-        "plms",
-        "k_euler",
-        "k_euler_ancestral",
-        "k_heun",
-        "k_dpm_2",
-        "k_dpm_2_ancestral",
-        "k_dpmpp_2s_ancestral",
-        "k_lms",
-        "k_dpmpp_2m",
-        "k_dpmpp_sde",
+        generation.SAMPLER_DDIM,
+        generation.SAMPLER_DDPM,
+        generation.SAMPLER_K_EULER,
+        generation.SAMPLER_K_EULER_ANCESTRAL,
+        generation.SAMPLER_K_HEUN,
+        generation.SAMPLER_K_DPM_2,
+        generation.SAMPLER_K_DPM_2_ANCESTRAL,
+        generation.SAMPLER_K_DPMPP_2S_ANCESTRAL,
+        generation.SAMPLER_K_LMS,
+        generation.SAMPLER_K_DPMPP_SDE,
+        generation.SAMPLER_K_DPMPP_2M,
     ]
 
     def __init__(self) -> None:
+        super().__init__()
         environ['STABILITY_HOST'] = 'grpc.stability.ai:443'
+        self.api_key = environ.get(self.api_key_name, None)
+        if self.api_key is None:
+            raise ValueError("STABILITY_KEY needs to be set with your StabilityAI API key.")
         self.stability_api = stability_client.StabilityInference(
-            key=environ[self.api_key_name],
+            key=self.api_key,
             verbose=True,
             engine=self.model_engines[0],
         )
@@ -59,7 +59,8 @@ class StabilityAI(BaseAPIProvider):
         # Set up StabilityAPI warning to print to the console if the adult content
         # classifier is tripped. If adult content classifier is not tripped,
         # save generated images.
-        img_results = []
+        api_result = APIResult()
+
         for i, resp in enumerate(results):
             for artifact in resp.artifacts:
                 if artifact.finish_reason == generation.FILTER:
@@ -68,9 +69,9 @@ class StabilityAI(BaseAPIProvider):
                         "and couldn't be processed. Please modify the prompt and try again.")
                 if artifact.type == generation.ARTIFACT_IMAGE:
                     img = PIL.Image.open(io.BytesIO(artifact.binary))
-                    img.save(str(artifact.seed)+ ".png")
-                    img_results.append(img)
-        return img_results
+                    local_filename = self._write_img(img, filename=str(artifact.seed) + ".png")
+                    api_result.add(local_filename, remote_url=None)
+        return api_result
 
 
 class StabilityAITxtToImg(StabilityAI):
@@ -83,7 +84,7 @@ class StabilityAITxtToImg(StabilityAI):
             "width": 512,
             "height": 512,
             "samples": 1,
-            "sampler": "k_dpmpp_2m",
+            "sampler": self.samplers[-1],
         }
 
     def run(self, inp: Any, params: Optional[Dict[str, str]] = None) -> Any:
@@ -112,13 +113,13 @@ class StabilityAIImgToImg(StabilityAI):
             "width": 512,
             "height": 512,
             "samples": 1,
-            "sampler": "k_dpmpp_2m",
+            "sampler": self.samplers[-1],
         }
 
     def run(self, inp: Any, params: Optional[Dict[str, str]] = None) -> Any:
         results = self.stability_api.generate(
-            prompt=inp,
-            init_image=img,
+            prompt=inp[0],
+            init_image=inp[1],
             seed=self.params["seed"],
             start_schedule=self.params["start_schedule"],
             steps=self.params["steps"],
@@ -142,14 +143,14 @@ class StabilityAIImgEdit(StabilityAI):
             "width": 512,
             "height": 512,
             "samples": 1,
-            "sampler": "k_dpmpp_2m",
+            "sampler": self.samplers[-1],
         }
 
     def run(self, inp: Any, params: Optional[Dict[str, str]] = None) -> Any:
         results = self.stability_api.generate(
-            prompt=inp,
-            init_image=img,
-            mask_image=mask,
+            prompt=inp[0],
+            init_image=inp[1],
+            mask_image=inp[2],
             seed=self.params["seed"],
             start_schedule=self.params["start_schedule"],
             steps=self.params["steps"],
@@ -169,14 +170,15 @@ class StabilityAISuperRes(StabilityAI):
     ]
 
     def __init__(self, upscale_engine: str) -> None:
+        super().__init__()
         if upscale_engine not in self.upscale_engines:
             raise ValueError(f"{upscale_engine} is not valid for param " +
-                             "'upscale_engine'".)
+                             "'upscale_engine'")
         else:
             self.engine = upscale_engine
 
-        self.stability_upscale_api = client.StabilityInference(
-            key=os.environ[super().api_key_name],
+        self.stability_upscale_api = stability_client.StabilityInference(
+            key=super().api_key,
             upscale_engine=self.engine,
             verbose=True,
         )
@@ -193,7 +195,7 @@ class StabilityAISuperRes(StabilityAI):
 
     def run(self, inp: Any, params: Optional[Dict[str, str]] = None) -> Any:
         if self.engine == "stable-diffusion-x4-latent-upscaler":
-            self.stability_upscale_api.upscale(
+            results = self.stability_upscale_api.upscale(
                 init_image=inp,
                 width=self.params["width"],
                 prompt=self.params["prompt"],
@@ -202,7 +204,7 @@ class StabilityAISuperRes(StabilityAI):
                 cfg_scale=self.params["cfg_scale"],
             )
         else:
-            self.stability_upscale_api.upscale(
+            results = self.stability_upscale_api.upscale(
                 init_image=inp,
                 width=self.params["width"],
             )

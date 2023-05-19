@@ -4,11 +4,11 @@ from chisel.api.openai import (
     OpenAIImgEdit,
     OpenAISuperRes,
 )
-from chisel.api.dreambooth import (
-    DreamboothTxtToImg,
-    DreamboothImgToImg,
-    DreamboothImgEdit,
-    DreamboothSuperRes,
+from chisel.api.stability_ai import (
+    StabilityAITxtToImg,
+    StabilityAIImgToImg,
+    StabilityAIImgEdit,
+    StabilityAISuperRes,
 )
 from chisel.api.stable_diffusion_api import (
     StableDiffusionAPITxtToImg,

@@ -1,49 +1,53 @@
-import os
 import random
-import requests
 import string
-from os.path import expanduser, join
+from os import listdir, unlink
+from os.path import expanduser, isfile, join
 from pathlib import Path
 from typing import Any
 
+import PIL
 
-class ImgChisel(object):
-    def __init__(self, storage_dir: str = "~/.chisel"):
+
+class LocalFS(object):
+    def __init__(self, storage_dir: str) -> None:
         self.storage_dir = expanduser(storage_dir)
         self.tmp_storage = Path(join(self.storage_dir, "tmp"))
         self.tmp_storage.mkdir(parents=True, exist_ok=True)
 
-    def _download_img_from_url(
+    def write_to_tmp(
         self,
-        url: str,
-        filename: str = None,
-        ext: str = None
+        obj: Any,
+        filename: Any = None,
+        ext: str = None,
     ) -> Path:
-        if filename is None:
-            # TODO: would be nice to abstract this away from only tmp storage.
-            filename = self._get_random_tmp_filename(ext)
-        full_path = self.tmp_storage / filename
-        # urllib.request.urlretrieve(url, full_path)
-        # r = requests.get(
-        #     settings.STATICMAP_URL.format(**data),
-        #     stream=True
-        # )
-        print("FULL PATH: ", full_path)
-        r = requests.get(url, stream=True)
-        print("REQUESTS RESPONSE: ", r)
-        if r.status_code == 200:
-            with open(full_path, 'wb') as f:
-                for chunk in r.iter_content(4096):
-                    f.write(chunk)
-        return full_path
-
-    def _write_to_tmp(self, obj: Any, filename: Any, ext: str = None):
         if filename is None:
             filename = self._get_random_tmp_filename(ext)
 
         full_path = self.tmp_storage / filename
         with open(str(full_path), "wb") as f:
             f.write(obj)
+        return full_path
+
+    def write_img_to_tmp(self, img: PIL.Image, filename: str) -> Path:
+        full_path = self.tmp_storage / Path(filename)
+        img.save(str(full_path))
+        return full_path
+
+    def stream_to_tmp(
+        self,
+        requests_result=None,
+        filename: Any = None,
+        ext: str = None,
+    ) -> Path:
+        if filename is None:
+            filename = self._get_random_tmp_filename(ext)
+        print(f"{filename}")
+
+        full_path = self.tmp_storage / filename
+        with open(str(full_path), "wb") as f:
+            for chunk in requests_result.iter_content(4096):
+                f.write(chunk)
+        return full_path
 
     def _get_random_tmp_filename(self, ext: str) -> Path:
         if ext is None:
@@ -56,12 +60,12 @@ class ImgChisel(object):
         )
         return Path(tmp_filename + ext)
 
-    def _cleanup_tmp_storage(self):
-        for file_name in os.listdir(self.tmp_storage):
-            file_path = os.path.join(self.tmp_storage, file_name)
+    def cleanup_tmp_storage(self):
+        for file_name in listdir(self.tmp_storage):
+            file_path = join(self.tmp_storage, file_name)
             try:
-                if os.path.isfile(file_path):
-                    os.unlink(file_path)
+                if isfile(file_path):
+                    unlink(file_path)
                     print(f"Deleted {file_path}")
             except Exception as e:
                 print(f"Error deleting {file_path}: {e}")

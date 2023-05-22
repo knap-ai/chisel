@@ -41,7 +41,6 @@ class LocalFS(object):
     ) -> Path:
         if filename is None:
             filename = self._get_random_tmp_filename(ext)
-        print(f"{filename}")
 
         full_path = self.tmp_storage / filename
         with open(str(full_path), "wb") as f:

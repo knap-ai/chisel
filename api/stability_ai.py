@@ -1,7 +1,9 @@
 import io
 from os import environ
+from pathlib import Path
 from typing import Any, Dict, List, Optional
 
+import numpy
 import PIL
 import stability_sdk.interfaces.gooseai.generation.generation_pb2 as generation
 import warnings
@@ -169,16 +171,18 @@ class StabilityAISuperRes(StabilityAI):
         "stable-diffusion-x4-latent-upscaler",
     ]
 
-    def __init__(self, upscale_engine: str) -> None:
+    def __init__(self, upscale_engine: str = None) -> None:
         super().__init__()
-        if upscale_engine not in self.upscale_engines:
+        if upscale_engine is None:
+            self.engine = self.upscale_engines[-1]
+        elif upscale_engine not in self.upscale_engines:
             raise ValueError(f"{upscale_engine} is not valid for param " +
                              "'upscale_engine'")
         else:
             self.engine = upscale_engine
 
         self.stability_upscale_api = stability_client.StabilityInference(
-            key=super().api_key,
+            key=self.api_key,
             upscale_engine=self.engine,
             verbose=True,
         )
@@ -195,17 +199,26 @@ class StabilityAISuperRes(StabilityAI):
 
     def run(self, inp: Any, params: Optional[Dict[str, str]] = None) -> Any:
         if self.engine == "stable-diffusion-x4-latent-upscaler":
+            prompt = self.params.get("prompt", None)
+            if inp[0] is not None:
+                prompt = inp[0]
+
+            init_image = inp[1]
+            if isinstance(inp[1], numpy.ndarray):
+                init_image = PIL.Image.fromarray(inp[1])
+            elif isinstance(inp[1], str) or isinstance(inp[1], Path):
+                init_image = PIL.Image.open(inp[1])
+
             results = self.stability_upscale_api.upscale(
-                init_image=inp,
+                init_image=init_image,
                 width=self.params["width"],
-                prompt=self.params["prompt"],
-                seed=self.params["seed"],
+                prompt=prompt,
                 steps=self.params["steps"],
                 cfg_scale=self.params["cfg_scale"],
             )
         else:
             results = self.stability_upscale_api.upscale(
-                init_image=inp,
+                init_image=inp[1],
                 width=self.params["width"],
             )
         return self._process_results(results)

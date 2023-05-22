@@ -38,6 +38,11 @@ class StableDiffusionAPI(BaseAPIProvider):
         return url
 
     def _process_response(self, response: Dict[str, Any]) -> APIResult:
+        status = response.get("status", None)
+        if status is not None and status == 'error':
+            message = response.get("message", "")
+            raise Exception(f"Error calling StableDiffusionAPI: status: {status}, message: {message}")
+
         response_output = response.get("output", [])
         api_result = APIResult()
 
@@ -207,7 +212,7 @@ class StableDiffusionAPISuperRes(StableDiffusionAPI):
         self.params: Dict[str, str] = {
             "key": "",
             "url": "",
-            "scale": 3,
+            "scale": 2,
             "webhook": None,
             "face_enhance": False
         }
@@ -222,10 +227,7 @@ class StableDiffusionAPISuperRes(StableDiffusionAPI):
         self.params["key"] = f"{self._key}"
 
         if isinstance(inp, str):
-            self.params["prompt"] = inp
-        elif isinstance(inp, list):
-            self.params["prompt"] = inp[0]
-            self.params["init_image"] = inp[1]
+            self.params["url"] = inp[0]
 
         headers = {
           'Content-Type': 'application/json'

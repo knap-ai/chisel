@@ -2,7 +2,6 @@ from chisel.api.openai import (
     OpenAITxtToImg,
     OpenAIImgToImg,
     OpenAIImgEdit,
-    OpenAISuperRes,
 )
 from chisel.api.stability_ai import (
     StabilityAITxtToImg,

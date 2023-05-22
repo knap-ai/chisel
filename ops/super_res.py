@@ -1,4 +1,4 @@
-from chisel.api import OpenAISuperRes, StabilityAISuperRes, StableDiffusionAPISuperRes
+from chisel.api import StabilityAISuperRes, StableDiffusionAPISuperRes
 from chisel.api.base_api_provider import BaseAPIProvider
 from chisel.data_types import Image
 from chisel.ops.base_chisel import BaseChisel

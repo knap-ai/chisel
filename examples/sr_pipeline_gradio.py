@@ -22,12 +22,13 @@ def run_super_resolution(txt_input, img_input):
 
 
 if __name__ == "__main__":
+    radio_choices = [Provider.OPENAI, Provider.STABILITY_AI, Provider.STABLE_DIFFUSION_API]
     with gr.Blocks() as demo:
         with gr.Row():
             with gr.Column():
-                radio_btn = gr.Radio(
-                    choices=['OpenAI', 'StabilityAI', 'StableDiffusionAPI'],
-                    value='OpenAI'
+                provider = gr.Radio(
+                    choices=radio_choices,
+                    value=radio_choices[0]
                 )
             with gr.Column():
                 txt_input = gr.Textbox(value="a cute cat holding his sombrero")
@@ -35,18 +36,23 @@ if __name__ == "__main__":
             with gr.Column():
                 img_output = gr.Image()
 
-        btn.click(fn=run_txt2img, inputs=txt_input, outputs=img_output)
+        btn.click(fn=run_txt2img, inputs=[txt_input, provider], outputs=img_output)
 
+    super_res_radio_choices = [Provider.STABILITY_AI, Provider.STABLE_DIFFUSION_API]
         with gr.Row():
             with gr.Column():
-                modify_txt_input = gr.Textbox(value="make the cat cuter and more realistic.")
+                provider = gr.Radio(
+                    choices=radio_choices,
+                    value=radio_choices[0]
+                )
+            with gr.Column():
                 super_resolution_btn = gr.Button("Run")
             with gr.Column():
                 super_resolution_output = gr.Image()
 
         super_resolution_btn.click(
             fn=run_super_resolution,
-            inputs=[modify_txt_input, img_output],
+            inputs=[img_output, provider],
             outputs=super_resolution_output
         )
 

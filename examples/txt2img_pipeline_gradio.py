@@ -19,9 +19,14 @@ def run_img2img(txt_input, img_input, provider):
     img2img = ImgToImg(provider=provider)
     if provider == Provider.STABLE_DIFFUSION_API:
         img_input = chisel_result.results[0].get("remote_url", None)
+        inputs = [txt_input, img_input]
     elif provider == Provider.STABILITY_AI:
         img_input = chisel_result.results[0].get("img", None)
-    output = img2img([txt_input, img_input])
+        inputs = [txt_input, img_input]
+    elif provider == Provider.OPENAI:
+        img_input = chisel_result.results[0].get("local_filename", None)
+        inputs = img_input
+    output = img2img(inputs)
     return output.get_image(0)
 
 

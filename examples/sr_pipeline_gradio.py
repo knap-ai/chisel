@@ -1,5 +1,7 @@
 import gradio as gr
-import chisel.ops
+
+from chisel.ops import SuperResolution, TxtToImg
+from chisel.ops.provider import Provider
 
 
 chisel_result = None
@@ -13,16 +15,20 @@ def run_txt2img(txt_input, provider):
     return output.get_image(0)
 
 
-def run_super_resolution(txt_input, img_input):
+def run_super_resolution(txt_input, img_input, provider):
     super_resolution = SuperResolution(provider=provider)
-    output = super_resolution(
-        [txt_input, chisel_result.results[0].get("remote_url", None)]
-    )
+    if provider == Provider.STABILITY_AI:
+        output = super_resolution([txt_input, img_input])
+    elif provider == Provider.STABLE_DIFFUSION_API:
+        output = super_resolution(
+            chisel_result.results[0].get("remote_url", None)
+        )
     return output.get_image(0)
 
 
 if __name__ == "__main__":
     radio_choices = [Provider.OPENAI, Provider.STABILITY_AI, Provider.STABLE_DIFFUSION_API]
+    super_res_radio_choices = [Provider.STABILITY_AI, Provider.STABLE_DIFFUSION_API]
     with gr.Blocks() as demo:
         with gr.Row():
             with gr.Column():
@@ -38,12 +44,16 @@ if __name__ == "__main__":
 
         btn.click(fn=run_txt2img, inputs=[txt_input, provider], outputs=img_output)
 
-    super_res_radio_choices = [Provider.STABILITY_AI, Provider.STABLE_DIFFUSION_API]
         with gr.Row():
             with gr.Column():
-                provider = gr.Radio(
-                    choices=radio_choices,
-                    value=radio_choices[0]
+                super_res_provider = gr.Radio(
+                    choices=super_res_radio_choices,
+                    value=super_res_radio_choices[0]
+                )
+            with gr.Column():
+                sr_txt_input = gr.Textbox(
+                    value="a cute cat holding his sombrero",
+                    label="Additional prompt for use with StabilityAI super resolution."
                 )
             with gr.Column():
                 super_resolution_btn = gr.Button("Run")
@@ -52,7 +62,7 @@ if __name__ == "__main__":
 
         super_resolution_btn.click(
             fn=run_super_resolution,
-            inputs=[img_output, provider],
+            inputs=[sr_txt_input, img_output, super_res_provider],
             outputs=super_resolution_output
         )
 

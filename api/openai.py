@@ -15,9 +15,6 @@ class OpenAI(BaseAPIProvider):
         super().__init__()
 
     def _process_results(self, response) -> List[Any]:
-        # Set up StabilityAPI warning to print to the console if the adult content
-        # classifier is tripped. If adult content classifier is not tripped,
-        # save generated images.
         api_result = APIResult()
 
         results = response.get('data', None)

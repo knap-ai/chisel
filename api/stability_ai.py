@@ -9,14 +9,12 @@ import stability_sdk.interfaces.gooseai.generation.generation_pb2 as generation
 import warnings
 from stability_sdk import client as stability_client
 
-from chisel.api.base_api_provider import (
-    BaseAPIProvider, APIResult
-)
+from chisel.api.base_api_provider import BaseAPIProvider, APIResult
 from chisel.data_types import Image
 
 
 class StabilityAI(BaseAPIProvider):
-    api_key_name: str = "STABILITY_KEY"
+    api_key_name: str = "CHISEL_API_KEY_STABILITY_AI"
     version: str = "v3"
     base_url: str = ""
     model_engines: List[str] = [
@@ -47,10 +45,13 @@ class StabilityAI(BaseAPIProvider):
 
     def __init__(self) -> None:
         super().__init__()
-        environ['STABILITY_HOST'] = 'grpc.stability.ai:443'
+        environ["STABILITY_HOST"] = "grpc.stability.ai:443"
         self.api_key = environ.get(self.api_key_name, None)
         if self.api_key is None:
-            raise ValueError("STABILITY_KEY needs to be set with your StabilityAI API key.")
+            raise ValueError(
+                f"{self.api_key_name} not set. Please set the env variable "
+                + "before using this class"
+            )
         self.stability_api = stability_client.StabilityInference(
             key=self.api_key,
             verbose=True,
@@ -67,11 +68,14 @@ class StabilityAI(BaseAPIProvider):
             for artifact in resp.artifacts:
                 if artifact.finish_reason == generation.FILTER:
                     warnings.warn(
-                        f"For result {i}, your request activated the API's safety filters " +
-                        "and couldn't be processed. Please modify the prompt and try again.")
+                        f"For result {i}, your request activated the API's safety filters "
+                        + "and couldn't be processed. Please modify the prompt and try again."
+                    )
                 if artifact.type == generation.ARTIFACT_IMAGE:
                     img = PIL.Image.open(io.BytesIO(artifact.binary))
-                    local_filename = self._write_img(img, filename=str(artifact.seed) + ".png")
+                    local_filename = self._write_img(
+                        img, filename=str(artifact.seed) + ".png"
+                    )
                     api_result.add(local_filename, remote_url=None)
         return api_result
 
@@ -176,8 +180,9 @@ class StabilityAISuperRes(StabilityAI):
         if upscale_engine is None:
             self.engine = self.upscale_engines[-1]
         elif upscale_engine not in self.upscale_engines:
-            raise ValueError(f"{upscale_engine} is not valid for param " +
-                             "'upscale_engine'")
+            raise ValueError(
+                f"{upscale_engine} is not valid for param " + "'upscale_engine'"
+            )
         else:
             self.engine = upscale_engine
 

@@ -5,11 +5,15 @@ description = "Chisel - Compose images with AI models."
 authors = ["Cooper Lindsey <cooper@knap.ai>"]
 readme = "README.md"
 packages = [
-  {include = "."}
+  {include = "./*"}
 ]
 exclude = ["./test"]
 
 [tool.poetry.dependencies]
+azure-storage-blob = "^12.16.0"
+beautifulsoup4 = "^4.12.2"
+boto3 = "^1.26.142"
+google-cloud-storage = "^2.9.0"
 python = "^3.7"
 requests = "2.28.1"
 stability-sdk = "0.8.0"

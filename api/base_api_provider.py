@@ -1,3 +1,4 @@
+import json
 from abc import abstractmethod, ABCMeta
 from pathlib import Path
 from typing import Any, Dict, Optional
@@ -11,7 +12,7 @@ from chisel.util.files import get_ext
 
 
 class BaseAPIProvider(metaclass=ABCMeta):
-    def __init__(self, storage_dir: str = "~/.chisel"):
+    def __init__(self, storage_dir: str = "~/chisel"):
         self.storage = LocalFS(storage_dir)
         s = requests.Session()
         retries = Retry(
@@ -56,6 +57,15 @@ class BaseAPIProvider(metaclass=ABCMeta):
                 ext = get_ext(filename)
             full_path = self.storage.stream_to_tmp(r, filename, ext)
         return full_path
+
+    def _post_with_retry(
+        self,
+        url: str,
+        headers: Dict[str, str],
+        payload: Any,
+    ) -> Dict[str, Any]:
+        data = json.dumps(payload)
+        return self.requests_session.post(url, headers=headers, data=data)
 
 
 class APIResult(object):

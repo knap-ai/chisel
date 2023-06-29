@@ -1,0 +1,37 @@
+{
+    "name": "A friendly model name",
+    "id": "A unique identifier",
+    "version": "0.0.1",
+    "model": {
+        "entrypoint": "sample.py",
+        "commands": {
+            "run": {},
+            "train": {},
+            "debug": {}
+        }
+    },
+    "inputs": [
+        {
+            "name": "Scalar",
+            "type": "int",
+            "attributes": {
+                "default": 0
+            }
+        },
+        {
+            "name": "Text",
+            "type": "text",
+            "attributes": {
+                "min-length": 0,
+                "max-length": 255,
+                "default": "lorem ipsum"
+            }
+        }
+    ],
+    "outputs": {
+        "type": "text"
+    },
+    "config": {
+        "artifacts": "directory-prefix"
+    }
+  }

@@ -1,0 +1,37 @@
+{
+    "name": "Model Sample 3",
+    "id": "Sample 3",
+    "version": "0.0.1",
+    "model": {
+        "entrypoint": "model-runner",
+        "commands": {
+            "run": {},
+            "train": {},
+            "debug": {}
+        }
+    },
+    "inputs": [
+        {
+            "name": "Scalar",
+            "type": "int",
+            "attributes": {
+                "default": 0
+            }
+        },
+        {
+            "name": "Text",
+            "type": "text",
+            "attributes": {
+                "min-length": 0,
+                "max-length": 255,
+                "default": "lorem ipsum"
+            }
+        }
+    ],
+    "outputs": {
+        "type": "text"
+    },
+    "config": {
+        "artifacts": "directory-prefix"
+    }
+  }

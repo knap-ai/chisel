@@ -1,0 +1,26 @@
+{
+    "name": "Model Sample 2",
+    "id": "sample-2",
+    "version": "0.0.1",
+    "model": {
+        "entrypoint": "something else",
+        "commands": {
+            "run": {},
+            "train": {},
+            "debug": {}
+        }
+    },
+    "inputs": [
+        {
+            "name": "Image",
+            "type": "image",
+            "attributes": {}
+        }
+    ],
+    "outputs": {
+        "type": "text"
+    },
+    "config": {
+        "artifacts": "directory-prefix"
+    }
+  }

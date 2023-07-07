@@ -19,7 +19,6 @@ class HF(BaseAPIProvider):
     def _process_results(self, response) -> List[Any]:
         api_result = APIResult()
 
-        print("HEADER: ", response.headers['Content-Type'])
         if response.headers['Content-Type'] == 'image/jpeg':
             data = response.content
             full_path = self.storage.write_to_tmp(data, ext=".png")

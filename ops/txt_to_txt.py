@@ -2,11 +2,11 @@ import asyncio
 import os
 import threading
 import queue
-from typing import Callable, Optional
+from typing import Any, Callable, Optional
 
 from langchain import PromptTemplate, LLMChain
 from langchain.chat_models import ChatOpenAI
-from langchain.callbacks.base import BaseCallbackManager
+from langchain.callbacks.base import BaseCallbackHandler
 from langchain.callbacks.streaming_stdout import StreamingStdOutCallbackHandler
 from langchain.llms import Cohere
 from langchain.schema import (
@@ -29,7 +29,12 @@ class TxtToTxt(BaseChisel):
     def _get_api(self, provider: Provider) -> BaseAPIProvider:
         pass
 
-    def __call__(self, txt: Text, callback: Optional[Callable] = None) -> Text:
+    def __call__(
+        self,
+        txt: Text,
+        callback: Optional[Callable] = None,
+    ) -> Text:
+        # TODO: generalize. This isn't going to scale.
         if self.provider == "openai":
             return openai_chat(txt, callback)
         elif self.provider == "cohere":
@@ -55,27 +60,29 @@ class ThreadedGenerator:
         self.queue.put(StopIteration)
 
 
-class ChainStreamHandler(StreamingStdOutCallbackHandler):
-    def __init__(self, gen):
-        super().__init__()
-        self.gen = gen
+class CustomCallback(BaseCallbackHandler):
+    def set_callback(self, callback):
+        self.callback = callback
 
     def on_llm_new_token(self, token: str, **kwargs):
-        print("NEW TOKEN: ", token)
-        self.gen.send(token)
+        self.callback.on_llm_new_token(token, kwargs)
+
+    def on_llm_end(self, response, **kwargs: Any) -> Any:
+        self.callback.on_llm_end(response=response, kwargs=kwargs)
 
 
-async def openai_chat_thread(g: ThreadedGenerator, prompt, callback):
+def openai_chat_thread(g: ThreadedGenerator, prompt, callback):
+    custom_callback = CustomCallback()
+    custom_callback.set_callback(callback)
     try:
         chat = ChatOpenAI(
             verbose=True,
             streaming=True,
-            # callback_manager=BaseCallbackManager([ChainStreamHandler(g)]),
+            callbacks=[custom_callback],
             temperature=0.7,
         )
         resp = chat([HumanMessage(content=prompt)])
-        callback(response=resp)
-
+        return resp
     finally:
         g.close()
 
@@ -83,15 +90,20 @@ async def openai_chat_thread(g: ThreadedGenerator, prompt, callback):
 def openai_chat(prompt, callback) -> ThreadedGenerator:
     generator = ThreadedGenerator()
     # threading.Thread(target=openai_chat_thread, args=(generator, prompt)).start()
-    openai_chat_thread(generator, prompt, callback)
-    return generator
+    resp = openai_chat_thread(generator, prompt, callback)
+    return resp
 
 
 def cohere_thread(prompt, callback):
-    llm = Cohere(cohere_api_key=os.environ.get(COHERE_API_KEY), temperature=0.7)
-    llm_chain = LLMChain(prompt=prompt, llm=llm)
-    answer = llm_chain.run(prompt)
-    callback(response=answer)
+    custom_callback = CustomCallback()
+    custom_callback.set_callback(callback)
+
+    llm = Cohere(cohere_api_key=os.environ.get("COHERE_API_KEY"), temperature=0.7)
+
+    template = """{prompt}"""
+    prompt_template = PromptTemplate(template=template, input_variables=["prompt"])
+    llm_chain = LLMChain(llm=llm, prompt=prompt_template)
+    answer = llm_chain(prompt, callbacks=[custom_callback])
 
 
 def cohere_llm(prompt: Text, callback) -> None:

@@ -1,9 +1,8 @@
 import json
-from pathlib import Path
-from typing import Any, Dict, List, Optional
+import os
+from typing import Any, Dict, List
 
-import requests
-import openai
+from PIL import Image
 
 from chisel.api.base_api_provider import (
     APIResult, BaseAPIProvider
@@ -20,42 +19,30 @@ class HF(BaseAPIProvider):
     def _process_results(self, response) -> List[Any]:
         api_result = APIResult()
 
-        results = response.get('data', None)
-        if results is None:
-            return api_result
-
-        for i, result in enumerate(results):
-            url = result.get("url", None)
-            if url is None:
-                continue
-            local_filename = self._download_img_from_url(url, ext=".png")
-            api_result.add(local_filename, remote_url=url)
-        return api_result
+        if response.headers['Content-Type'] == 'image/jpeg':
+            data = response.content
+            full_path = self.storage.write_to_tmp(data, ext=".png")
+            return Image.open(full_path)
+        else:
+            data = json.loads(response.content.decode("utf-8"))
+            self.storage.write_to_tmp(data, ext=".txt")
+            return data
 
 
 class HFInference(HF):
     def __init__(self) -> None:
         super().__init__()
-        self.params: Dict[str, Any] = {
-            "width": 512,
-            "samples": 1,
-        }
-
-    def _query(self, payload):
-        data = json.dumps(payload)
-        response = requests.request("POST", API_URL, headers=headers, data=data)
-        return json.loads(response.content.decode("utf-8"))
 
     def run(self, inp: Any, params: Dict[str, str] = None) -> Any:
-        if not isinstance(inp, str):
-            raise ValueError("Expected inp to be a str (prompt).")
-
         model_id = params.get("model_id", None)
-        API_URL = f"https://api-inference.huggingface.co/models/{model_id}"
+        txt_to_img = params.get("txt_to_img", False)
 
-        print(self.api_key)
+        api_url = f"https://api-inference.huggingface.co/models/{model_id}"
 
-        headers = {"Authorization": f"Bearer {self.api_key}"}
+        headers = {
+            "Authorization": f"Bearer {self.api_key}",
+            'Content-Type': 'application/json',
+        }
 
-        data = query("Can you please let us know more details about your ")
+        response = self._post_with_retry(api_url, headers, inp)
         return self._process_results(response)

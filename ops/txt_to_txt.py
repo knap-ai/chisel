@@ -22,11 +22,19 @@ from chisel.ops.provider import Provider
 
 
 class TxtToTxt(BaseChisel):
-    def __init__(self, provider: Provider) -> None:
+    def __init__(
+        self,
+        provider: Provider,
+        model: str,
+    ) -> None:
         super().__init__(provider)
         self.provider = provider
+        self.model = model
 
-    def _get_api(self, provider: Provider) -> BaseAPIProvider:
+    def _get_api(
+        self,
+        provider: Provider,
+    ) -> BaseAPIProvider:
         pass
 
     def __call__(
@@ -36,7 +44,11 @@ class TxtToTxt(BaseChisel):
     ) -> Text:
         # TODO: generalize. This isn't going to scale.
         if self.provider == "openai":
-            return openai_chat(txt, callback)
+            return openai_chat(
+                txt,
+                callback,
+                self.model,
+            )
         elif self.provider == "cohere":
             return cohere_llm(txt, callback)
 
@@ -71,27 +83,35 @@ class CustomCallback(BaseCallbackHandler):
         self.callback.on_llm_end(response=response, kwargs=kwargs)
 
 
-def openai_chat_thread(g: ThreadedGenerator, prompt, callback):
+def openai_chat_thread(
+    prompt,
+    callback,
+    model: str,
+):
     custom_callback = CustomCallback()
     custom_callback.set_callback(callback)
+
+    official_model_name = "gpt-3.5-turbo"
+    if model == "gpt-4":
+        official_model_name = "gpt-4"
+
     try:
         chat = ChatOpenAI(
+            model_name=official_model_name,
             verbose=True,
-            streaming=True,
+            streaming=False,
             callbacks=[custom_callback],
             temperature=0.7,
         )
         resp = chat([HumanMessage(content=prompt)])
         return resp
-    finally:
-        g.close()
+    except Exception as e:
+        print("ChiselError: ", e)
 
 
-def openai_chat(prompt, callback) -> ThreadedGenerator:
-    generator = ThreadedGenerator()
-    # threading.Thread(target=openai_chat_thread, args=(generator, prompt)).start()
-    resp = openai_chat_thread(generator, prompt, callback)
-    return resp
+def openai_chat(prompt, callback, model: str) -> bool:
+    threading.Thread(target=openai_chat_thread, args=(prompt, callback, model)).start()
+    return True
 
 
 def cohere_thread(prompt, callback):
@@ -106,6 +126,6 @@ def cohere_thread(prompt, callback):
     answer = llm_chain(prompt, callbacks=[custom_callback])
 
 
-def cohere_llm(prompt: Text, callback) -> None:
+def cohere_llm(prompt: Text, callback) -> bool:
     threading.Thread(target=cohere_thread, args=(prompt, callback)).start()
-    return None
+    return True

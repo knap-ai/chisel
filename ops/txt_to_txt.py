@@ -2,34 +2,67 @@ import asyncio
 import os
 import threading
 import queue
-from typing import Any, Callable, Optional
+from typing import Any, Callable, List, Optional
 
 from langchain import PromptTemplate, LLMChain
+from langchain.chains import RetrievalQA
 from langchain.chat_models import ChatOpenAI
 from langchain.callbacks.base import BaseCallbackHandler
 from langchain.callbacks.streaming_stdout import StreamingStdOutCallbackHandler
 from langchain.llms import Cohere
+from langchain.llms.base import LLM
+from langchain.embeddings.openai import OpenAIEmbeddings
 from langchain.schema import (
     AIMessage,
     HumanMessage,
     SystemMessage
 )
+from langchain.vectorstores import Qdrant
+from pydantic import Field
+from qdrant_client import QdrantClient
+from qdrant_client.http import models
 
 from chisel.api.base_api_provider import BaseAPIProvider
 from chisel.data_types import Text, Image
 from chisel.ops.base_chisel import BaseChisel
 from chisel.ops.provider import Provider
+from chisel.qdrant_db import QdrantDBFactory
 
 
-class TxtToTxt(BaseChisel):
+class TxtToTxt(LLM):
+    provider: str = Field(default='openai')
+    model: str = Field(default='gpt-3.5-turbo')
+    use_thread: bool = Field(default=False)
+    doc_store: Qdrant = Field(default=None)
+    qdrant_client: QdrantClient = Field(default=None)
+    collection: str = Field(default=None)
+    text: str = Field(default="")
+
     def __init__(
         self,
         provider: Provider,
         model: str,
+        use_thread: bool = True,
+        collection: str = None,
     ) -> None:
-        super().__init__(provider)
-        self.provider = provider
-        self.model = model
+        super().__init__()
+        self.use_thread = use_thread
+        if collection is not None:
+            self.collection = collection
+            embeddings = OpenAIEmbeddings()
+            db_factory = QdrantDBFactory()
+            self.qdrant_client = db_factory.get_client()
+            qdrant_collections = self.qdrant_client.get_collections()
+            if collection not in qdrant_collections:
+                self.qdrant_client.recreate_collection(
+                    collection_name=collection,
+                    vectors_config=models.VectorParams(size=1536, distance=models.Distance.COSINE)
+                )
+            self.doc_store = Qdrant(
+                client=self.qdrant_client,
+                collection_name=collection,
+                embeddings=embeddings,
+            )
 
     def _get_api(
         self,
@@ -48,9 +81,57 @@ class TxtToTxt(BaseChisel):
                 txt,
                 callback,
                 self.model,
+                self.use_thread,
+                self.doc_store,
             )
         elif self.provider == "cohere":
-            return cohere_llm(txt, callback)
+            return cohere_llm(txt, callback, self.use_thread)
+
+    def _llm_type(self) -> str:
+        return "custom"
+
+    def _call(
+        self,
+        prompt: str,
+        stop: Optional[List[str]] = None,
+        run_manager = None  # : Optional[CallbackManagerForLLMRun] = None,
+    ) -> str:
+        # Used so that TxtToTxt can be passed to Langchain as an LLM.
+        if stop is not None:
+            raise ValueError("stop kwargs are not permitted.")
+        self.text = prompt
+        return self.__call__(prompt, run_manager)
+
+    async def _acall(
+        self,
+        prompt: str,
+        stop: Optional[List[str]] = None,
+        run_manager = None  # : Optional[CallbackManagerForLLMRun] = None,
+    ) -> str:
+        final_query = prompt
+        self.text = prompt
+        if isinstance(prompt, str):
+            final_query = [HumanMessage(content=prompt)]
+
+        chat = ChatOpenAI(
+            model_name=self.model,
+            verbose=True,
+            streaming=False,
+            temperature=0,
+        )
+        print("USING RETRIEVAL QA")
+        qa = RetrievalQA.from_chain_type(llm=chat, retriever=self.doc_store.as_retriever())
+        resp = await qa.arun(prompt)
+        print(f"USING RETRIEVAL QA: {resp}")
+        # if doc_store:
+        #     qa = RetrievalQA.from_chain_type(llm=chat, retriever=doc_store.as_retriever())
+        #     print(f"prompt: {prompt}")
+        #     resp = qa.arun(prompt)
+        #     print(f"resp: {resp}")
+        # else:
+        #     resp = await chat.agenerate([final_query])
+
+        return resp
 
 
 class ThreadedGenerator:
@@ -87,6 +168,7 @@ def openai_chat_thread(
     prompt,
     callback,
     model: str,
+    doc_store: Optional = None,
 ):
     custom_callback = CustomCallback()
     custom_callback.set_callback(callback)
@@ -94,6 +176,10 @@ def openai_chat_thread(
     official_model_name = "gpt-3.5-turbo"
     if model == "gpt-4":
         official_model_name = "gpt-4"
+
+    final_query = prompt
+    if isinstance(prompt, str):
+        final_query = [HumanMessage(content=prompt)]
 
     try:
         chat = ChatOpenAI(
@@ -103,15 +189,31 @@ def openai_chat_thread(
             callbacks=[custom_callback],
             temperature=0.7,
         )
-        resp = chat([HumanMessage(content=prompt)])
+        if doc_store:
+            qa = RetrievalQA.from_chain_type(llm=chat, retriever=doc_store.as_retriever())
+            resp = qa.run(prompt)
+        else:
+            resp = chat(final_query)
+
         return resp
     except Exception as e:
         print("ChiselError: ", e)
 
 
-def openai_chat(prompt, callback, model: str) -> bool:
-    threading.Thread(target=openai_chat_thread, args=(prompt, callback, model)).start()
-    return True
+def openai_chat(
+    prompt,
+    callback,
+    model: str,
+    use_thread: bool,
+    doc_store: Optional = None
+) -> str:
+    if use_thread:
+        return threading.Thread(
+            target=openai_chat_thread,
+            args=(prompt, callback, model, doc_store)
+        ).start()
+    else:
+        return openai_chat_thread(prompt, callback, model, doc_store)
 
 
 def cohere_thread(prompt, callback):
@@ -126,6 +228,8 @@ def cohere_thread(prompt, callback):
     answer = llm_chain(prompt, callbacks=[custom_callback])
 
 
-def cohere_llm(prompt: Text, callback) -> bool:
-    threading.Thread(target=cohere_thread, args=(prompt, callback)).start()
-    return True
+def cohere_llm(prompt: Text, callback, use_thread: bool) -> str:
+    if use_thread:
+        return threading.Thread(target=cohere_thread, args=(prompt, callback)).start()
+    else:
+        return cohere_thread(prompt, callback)

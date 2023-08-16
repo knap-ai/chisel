@@ -35,6 +35,7 @@ class TxtToTxt(LLM):
     use_thread: bool = Field(default=False)
     doc_store: Qdrant = Field(default=None)
     qdrant_client: QdrantClient = Field(default=None)
+    embeddings: str = Field(default=OpenAIEmbeddings())
     collection: str = Field(default=None)
     text: str = Field(default="")
 
@@ -43,32 +44,34 @@ class TxtToTxt(LLM):
         provider: Provider,
         model: str,
         use_thread: bool = True,
-        collection: str = None,
     ) -> None:
         super().__init__()
         self.use_thread = use_thread
-        if collection is not None:
-            self.collection = collection
-            embeddings = OpenAIEmbeddings()
-            db_factory = QdrantDBFactory()
-            self.qdrant_client = db_factory.get_client()
-            qdrant_collections = self.qdrant_client.get_collections()
-            if collection not in qdrant_collections:
-                self.qdrant_client.recreate_collection(
-                    collection_name=collection,
-                    vectors_config=models.VectorParams(size=1536, distance=models.Distance.COSINE)
-                )
-            self.doc_store = Qdrant(
-                client=self.qdrant_client,
-                collection_name=collection,
-                embeddings=embeddings,
-            )
+        self.collection = None
+        self.doc_store = None
+        db_factory = QdrantDBFactory()
+        self.qdrant_client = db_factory.get_client()
 
     def _get_api(
         self,
         provider: Provider,
     ) -> BaseAPIProvider:
         pass
+
+    def build_doc_store(self, collection: str):
+        if collection is not None and self.collection != collection:
+            self.collection = collection
+            qdrant_collections = self.qdrant_client.get_collections()
+            if self.collection not in qdrant_collections:
+                self.qdrant_client.recreate_collection(
+                    collection_name=self.collection,
+                    vectors_config=models.VectorParams(size=1536, distance=models.Distance.COSINE)
+                )
+            self.doc_store = Qdrant(
+                client=self.qdrant_client,
+                collection_name=self.collection,
+                embeddings=self.embeddings,
+            )
 
     def __call__(
         self,
@@ -119,17 +122,16 @@ class TxtToTxt(LLM):
             streaming=False,
             temperature=0,
         )
-        print("USING RETRIEVAL QA")
-        qa = RetrievalQA.from_chain_type(llm=chat, retriever=self.doc_store.as_retriever())
-        resp = await qa.arun(prompt)
-        print(f"USING RETRIEVAL QA: {resp}")
-        # if doc_store:
-        #     qa = RetrievalQA.from_chain_type(llm=chat, retriever=doc_store.as_retriever())
-        #     print(f"prompt: {prompt}")
-        #     resp = qa.arun(prompt)
-        #     print(f"resp: {resp}")
-        # else:
-        #     resp = await chat.agenerate([final_query])
+        if self.doc_store:
+            qa = RetrievalQA.from_chain_type(
+                llm=chat,
+                retriever=self.doc_store.as_retriever()
+            )
+            print(f"prompt: {prompt}")
+            resp = await qa.arun(prompt)
+            print(f"USING RETRIEVAL QA: {resp}")
+        else:
+            resp = await chat.agenerate([final_query])
 
         return resp
 
